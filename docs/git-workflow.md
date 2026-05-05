@@ -14,6 +14,19 @@ Le protocole standard est **SSH** (port 22). C'est celui utilisé par défaut po
 
 Le protocole de secours est **HTTPS** (port 443). Il est utilisé quand SSH n'est pas disponible (réseaux d'entreprise filtrés, proxys, postes sans clé SSH configurée). L'authentification se fait alors par token (PAT) ou via un credential manager. C'est plus lent que SSH sur de gros transferts mais ça passe partout.
 
+> **Cas réel : port SSH 22 bloqué** — Sur certains réseaux (entreprise, Wi-Fi restreint), le port 22 est filtré côté pare-feu. Le symptôme : `ssh: connect to host github.com port 22: Connection timed out`. La solution retenue ici a été de basculer le remote en **HTTPS** et de s'authentifier via un **Personal Access Token (PAT) GitHub** à la place du mot de passe.
+>
+> Reconfiguration du remote existant :
+> ```bash
+> git remote set-url origin https://github.com/<org>/<repo>.git
+> ```
+> Lors du premier `push`, Git demande un identifiant et un mot de passe : saisir le **token** (pas le mot de passe du compte GitHub). Pour ne pas ressaisir à chaque opération, activer le credential manager :
+> ```bash
+> git config --global credential.helper manager        # Windows (Git Credential Manager)
+> git config --global credential.helper osxkeychain   # macOS
+> ```
+> Le token est alors mémorisé dans le gestionnaire de clés du système pour les opérations suivantes.
+
 #### T3 — Est-il possible de synchroniser un dépôt local avec plusieurs dépôts distants ? Si oui, comment ?
 
 Oui, c'est tout à fait possible. Un dépôt local peut avoir autant de remotes que nécessaire — chacun identifié par un nom unique (`origin` est juste la convention par défaut).
@@ -273,7 +286,24 @@ git push origin hotfix
 - ❌ Pas d'auto-approbation de PR
 - ❌ Pas de force-push sur une branche partagée
 
-### 11. Schéma de synthèse du flux
+### 11. Protection des branches — configuration GitHub (Rulesets)
+
+Un **Ruleset GitHub** a été mis en place sur ce dépôt pour enforcer les règles du workflow directement au niveau de la plateforme, indépendamment des conventions d'équipe.
+
+**Règles actives sur `main` :**
+
+| Règle | Effet |
+|---|---|
+| Bloquer les créations directes | Impossible de créer la branche `main` depuis l'interface ou en CLI sans passer par une PR |
+| Bloquer les mises à jour directes | Tout push direct sur `main` est rejeté — seuls les merges de PR sont acceptés |
+| Bloquer les force-push | `git push --force` sur `main` est interdit, même pour les mainteneurs |
+| PR obligatoire | Toute modification de `main` passe obligatoirement par une Pull Request |
+
+> **Bypass admin intentionnel** — Un bypass de règle a été volontairement accordé aux **administrateurs du dépôt** uniquement, pour permettre l'édition directe du `README.md` via l'interface GitHub sans passer par une PR. Ce contournement est limité à cet usage et documenté ici pour traçabilité (cf. README).
+
+Ces protections complètent les règles d'équipe de la section 10 en les rendant techniquement non contournables pour les membres standards.
+
+### 12. Schéma de synthèse du flux
 
 ```
                   ┌────────────────────────────────────┐
